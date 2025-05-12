@@ -126,6 +126,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          Container(height: 20,),
                           Row(
                             children: [
                               CircleAvatar(

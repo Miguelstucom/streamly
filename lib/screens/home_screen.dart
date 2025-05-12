@@ -23,6 +23,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Map<String, List<Movie>> _moviesByGenre = {};
   List<Movie> _topMovies = [];
   List<Movie> _searchResults = [];
+  static const String _imageBaseUrl = 'https://image.tmdb.org/t/p/w500';
   bool _isLoading = true;
   bool _isSearching = false;
   int _currentPage = 1;
@@ -503,7 +504,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: Image.network(
-                        movie.posterPath!,
+                        '$_imageBaseUrl${movie.posterPath}',
                         fit: BoxFit.cover,
                         width: double.infinity,
                         height: double.infinity,
@@ -602,7 +603,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          movie.ratingMean.toStringAsFixed(1),
+                          movie.voteAverage!.toStringAsFixed(1),
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -611,7 +612,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          '(${movie.ratingCount})',
+                          '(${movie.voteCount})',
                           style: TextStyle(
                             color: Colors.grey[400],
                             fontSize: 16,
@@ -665,7 +666,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       ? ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: Image.network(
-                            movie.posterPath!,
+                            '$_imageBaseUrl${movie.posterPath}',
                             fit: BoxFit.cover,
                             width: double.infinity,
                             height: double.infinity,
@@ -711,7 +712,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  movie.ratingMean.toStringAsFixed(1),
+                  movie.voteAverage!.toStringAsFixed(1),
                   style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 14,
@@ -719,7 +720,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '(${movie.ratingCount})',
+                  '(${movie.voteCount})',
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 14,
@@ -766,7 +767,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
                 child: movie.posterPath != null
                     ? Image.network(
-                        movie.posterPath!,
+                        '$_imageBaseUrl${movie.posterPath}',
                         fit: BoxFit.cover,
                         width: double.infinity,
                         errorBuilder: (context, error, stackTrace) {
@@ -816,7 +817,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          movie.ratingMean.toStringAsFixed(1),
+                          movie.voteAverage!.toStringAsFixed(1),
                           style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 14,
@@ -824,7 +825,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          '(${movie.ratingCount})',
+                          '(${movie.voteCount})',
                           style: TextStyle(
                             color: Colors.grey[400],
                             fontSize: 14,

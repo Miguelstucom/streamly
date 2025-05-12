@@ -20,6 +20,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   MovieReviewsResponse? _reviews;
   bool _isLoading = true;
   String? _error;
+  static const String _imageBaseUrl = 'https://image.tmdb.org/t/p/w500';
 
   @override
   void initState() {
@@ -29,7 +30,9 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
 
   Future<void> _loadReviews() async {
     try {
-      final reviews = await _movieService.getMovieReviews(widget.movie.movieId);
+      final reviews = await _movieService.getMovieReviews(
+        widget.movie.movieId!,
+      );
       setState(() {
         _reviews = reviews;
         _isLoading = false;
@@ -42,143 +45,153 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     }
   }
 
+  String _formatRuntime(int? minutes) {
+    if (minutes == null) return '';
+    final hours = minutes ~/ 60;
+    final remainingMinutes = minutes % 60;
+    return '${hours}h ${remainingMinutes}m';
+  }
+
+  String _formatCurrency(int? amount) {
+    if (amount == null) return 'N/A';
+    final formatter = NumberFormat.currency(symbol: '\$', decimalDigits: 0);
+    return formatter.format(amount);
+  }
+
   Future<void> _showReviewDialog() async {
     final TextEditingController descriptionController = TextEditingController();
     double rating = 0.0;
 
     await showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          backgroundColor: Colors.grey[900],
-          title: const Text(
-            'Escribe tu reseña',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Rating stars
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (index) {
-                  return IconButton(
-                    icon: Icon(
-                      index < rating ? Icons.star : Icons.star_border,
-                      color: Colors.amber,
-                      size: 32,
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setState) => AlertDialog(
+                  backgroundColor: Colors.grey[900],
+                  title: const Text(
+                    'Escribe tu reseña',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
                     ),
-                    onPressed: () {
-                      setState(() {
-                        rating = index + 1.0;
-                      });
-                    },
-                  );
-                }),
-              ),
-              const SizedBox(height: 16),
-              // Description field
-              TextField(
-                controller: descriptionController,
-                maxLines: 3,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: 'Escribe tu opinión sobre la película...',
-                  hintStyle: TextStyle(color: Colors.grey[400]),
-                  filled: true,
-                  fillColor: Colors.grey[800],
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
                   ),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(5, (index) {
+                          return IconButton(
+                            icon: Icon(
+                              index < rating ? Icons.star : Icons.star_border,
+                              color: Colors.amber,
+                              size: 32,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                rating = index + 1.0;
+                              });
+                            },
+                          );
+                        }),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: descriptionController,
+                        maxLines: 3,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: 'Escribe tu opinión sobre la película...',
+                          hintStyle: TextStyle(color: Colors.grey[400]),
+                          filled: true,
+                          fillColor: Colors.grey[800],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text(
+                        'Cancelar',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        if (rating == 0) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Por favor, selecciona una calificación',
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+                        if (descriptionController.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Por favor, escribe una descripción',
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+
+                        try {
+                          await _movieService.postMovieReview(
+                            widget.movie.movieId!,
+                            rating,
+                            descriptionController.text.trim(),
+                          );
+                          if (mounted) {
+                            Navigator.pop(context);
+                            _loadReviews();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Reseña publicada con éxito'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Error al publicar la reseña: $e',
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                      ),
+                      child: const Text('Publicar'),
+                    ),
+                  ],
                 ),
-              ),
-            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                'Cancelar',
-                style: TextStyle(color: Colors.white70),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (rating == 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Por favor, selecciona una calificación'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                  return;
-                }
-                if (descriptionController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Por favor, escribe una descripción'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                  return;
-                }
-
-                try {
-                  await _movieService.postMovieReview(
-                    widget.movie.movieId,
-                    rating,
-                    descriptionController.text.trim(),
-                  );
-                  if (mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Reseña publicada exitosamente'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                    _loadReviews(); // Reload reviews
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(e.toString()),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Publicar'),
-            ),
-          ],
-        ),
-      ),
     );
-  }
-
-  String _formatTimestamp(int? timestamp) {
-    if (timestamp == null) return '';
-    final date = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
-    return DateFormat('dd/MM/yyyy').format(date);
   }
 
   Widget _buildReviewCard(MovieReview review) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       color: Colors.grey[900],
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       elevation: 4,
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -214,10 +227,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                       ),
                       Text(
                         '@${review.username}',
-                        style: TextStyle(
-                          color: Colors.grey[400],
-                          fontSize: 14,
-                        ),
+                        style: TextStyle(color: Colors.grey[400], fontSize: 14),
                       ),
                     ],
                   ),
@@ -241,11 +251,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
-                        Icons.star,
-                        color: Colors.white,
-                        size: 16,
-                      ),
+                      const Icon(Icons.star, color: Colors.white, size: 16),
                       const SizedBox(width: 4),
                       Text(
                         review.rating.toStringAsFixed(1),
@@ -264,18 +270,11 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(
-                    Icons.access_time,
-                    size: 14,
-                    color: Colors.grey[400],
-                  ),
+                  Icon(Icons.access_time, size: 14, color: Colors.grey[400]),
                   const SizedBox(width: 4),
                   Text(
                     _formatTimestamp(review.timestamp),
-                    style: TextStyle(
-                      color: Colors.grey[400],
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: Colors.grey[400], fontSize: 12),
                   ),
                 ],
               ),
@@ -302,13 +301,18 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     );
   }
 
+  String _formatTimestamp(int? timestamp) {
+    if (timestamp == null) return '';
+    final date = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+    return DateFormat('dd/MM/yyyy HH:mm').format(date);
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: Scaffold(
         body: CustomScrollView(
           slivers: [
-            // Backdrop image with gradient overlay
             SliverAppBar(
               expandedHeight: 300,
               pinned: true,
@@ -318,7 +322,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                   children: [
                     if (widget.movie.backdropPath != null)
                       Image.network(
-                        widget.movie.backdropPath!,
+                        '$_imageBaseUrl${widget.movie.backdropPath}',
                         fit: BoxFit.cover,
                         loadingBuilder: (context, child, loadingProgress) {
                           if (loadingProgress == null) return child;
@@ -339,7 +343,6 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                           ),
                         ),
                       ),
-                    // Gradient overlay
                     Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
@@ -361,58 +364,74 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                 onPressed: () => Navigator.pop(context),
               ),
             ),
-            // Movie details
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Title and year
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Poster
                         if (widget.movie.posterPath != null)
                           ClipRRect(
                             borderRadius: BorderRadius.circular(8),
                             child: Image.network(
-                              widget.movie.posterPath!,
+                              '$_imageBaseUrl${widget.movie.posterPath}',
                               width: 120,
                               height: 180,
                               fit: BoxFit.cover,
-                              loadingBuilder: (context, child, loadingProgress) {
+                              loadingBuilder: (
+                                context,
+                                child,
+                                loadingProgress,
+                              ) {
                                 if (loadingProgress == null) return child;
                                 return const Skeleton(
                                   width: 120,
                                   height: 180,
-                                  borderRadius: BorderRadius.all(Radius.circular(8)),
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(8),
+                                  ),
                                 );
                               },
                             ),
                           ),
                         const SizedBox(width: 16),
-                        // Title and info
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                widget.movie.cleanTitle,
-                                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                widget.movie.title ?? '',
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.headlineMedium?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
+                              if (widget.movie.originalTitle != null &&
+                                  widget.movie.originalTitle !=
+                                      widget.movie.title) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  widget.movie.originalTitle!,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium?.copyWith(
+                                    color: Colors.grey[400],
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ],
                               const SizedBox(height: 8),
                               Text(
-                                widget.movie.year,
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                      color: Colors.grey[400],
-                                    ),
+                                widget.movie.releaseDate ?? '',
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(color: Colors.grey[400]),
                               ),
                               const SizedBox(height: 16),
-                              // Rating
                               Row(
                                 children: [
                                   const Icon(
@@ -422,15 +441,20 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    widget.movie.ratingMean.toStringAsFixed(1),
-                                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                    widget.movie.voteAverage?.toStringAsFixed(
+                                          1,
+                                        ) ??
+                                        'N/A',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.titleLarge?.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    '(${widget.movie.ratingCount} votos)',
+                                    '(${widget.movie.voteCount ?? 0} votos)',
                                     style: TextStyle(
                                       color: Colors.grey[400],
                                       fontSize: 16,
@@ -438,82 +462,209 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                                   ),
                                 ],
                               ),
+                              const SizedBox(height: 8),
+                              if (widget.movie.runtime != null) ...[
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.access_time,
+                                      color: Colors.grey,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      _formatRuntime(widget.movie.runtime),
+                                      style: TextStyle(
+                                        color: Colors.grey[400],
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ],
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 24),
-                    // Overview
+                    if (widget.movie.tagline != null &&
+                        widget.movie.tagline!.isNotEmpty) ...[
+                      Text(
+                        widget.movie.tagline!,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.titleMedium?.copyWith(
+                          color: Colors.grey[300],
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
                     if (widget.movie.overview != null) ...[
                       Text(
                         'Sinopsis',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         widget.movie.overview!,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: Colors.grey[300],
-                              height: 1.5,
-                            ),
+                          color: Colors.grey[300],
+                          height: 1.5,
+                        ),
                       ),
                       const SizedBox(height: 24),
                     ],
-                    // Genres
-                    Text(
-                      'Géneros',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: widget.movie.genres.map((genre) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: AppTheme.primaryColor,
-                              width: 1,
+                    if (widget.movie.genres != null &&
+                        widget.movie.genres!.isNotEmpty) ...[
+                      Text(
+                        'Géneros',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children:
+                            widget.movie.genres!.map((genre) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryColor.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: AppTheme.primaryColor,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Text(
+                                  genre,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                    if (widget.movie.budget != null ||
+                        widget.movie.revenue != null) ...[
+                      Text(
+                        'Información Financiera',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      if (widget.movie.budget != null) ...[
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.attach_money,
+                              color: Colors.grey,
+                              size: 20,
                             ),
-                          ),
-                          child: Text(
-                            genre,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w500,
+                            const SizedBox(width: 8),
+                            Text(
+                              'Presupuesto: ${_formatCurrency(widget.movie.budget)}',
+                              style: TextStyle(
+                                color: Colors.grey[300],
+                                fontSize: 16,
+                              ),
                             ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 24),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      if (widget.movie.revenue != null) ...[
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.trending_up,
+                              color: Colors.grey,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Recaudación: ${_formatCurrency(widget.movie.revenue)}',
+                              style: TextStyle(
+                                color: Colors.grey[300],
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 24),
+                    ],
+                    if (widget.movie.productionCompanies != null &&
+                        widget.movie.productionCompanies!.isNotEmpty) ...[
+                      Text(
+                        'Compañías Productoras',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children:
+                            widget.movie.productionCompanies!.map((company) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[800],
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Text(
+                                  company,
+                                  style: TextStyle(
+                                    color: Colors.grey[300],
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
                     if (_reviews != null) ...[
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
                             'Últimas Reseñas',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                            style: Theme.of(
+                              context,
+                            ).textTheme.titleLarge?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           ElevatedButton.icon(
                             onPressed: _showReviewDialog,
-                            icon: const Icon(Icons.rate_review,color: Colors.white,),
+                            icon: const Icon(
+                              Icons.rate_review,
+                              color: Colors.white,
+                            ),
                             label: const Text('Escribir reseña'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppTheme.primaryColor,
@@ -528,9 +679,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                       ),
                       const SizedBox(height: 16),
                       if (_isLoading)
-                        const Center(
-                          child: CircularProgressIndicator(),
-                        )
+                        const Center(child: CircularProgressIndicator())
                       else if (_error != null)
                         Center(
                           child: Text(
@@ -557,4 +706,4 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       ),
     );
   }
-} 
+}

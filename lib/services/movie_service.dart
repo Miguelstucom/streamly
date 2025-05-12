@@ -14,7 +14,7 @@ class MovieService {
       if (token['token'] == null) return [];
 
       final response = await http.get(
-        Uri.parse('$baseUrl/movies/genre/$genre'),
+        Uri.parse('$baseUrl/api/movies/genre/$genre'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${token['token']}',
@@ -22,9 +22,8 @@ class MovieService {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final List<dynamic> movies = data['movies'];
-        return movies.map((json) => Movie.fromJson(json)).toList();
+        final List<dynamic> data = jsonDecode(response.body);
+        return data.map((json) => Movie.fromJson(json)).toList();
       } else if (response.statusCode == 401) {
         // Si el token no es válido, lo eliminamos
         await StorageService.deleteToken();
@@ -32,6 +31,7 @@ class MovieService {
       }
       return [];
     } catch (e) {
+      print('Error in getMoviesByGenre: $e');
       return [];
     }
   }
@@ -42,7 +42,7 @@ class MovieService {
       if (token['token'] == null) return [];
 
       final response = await http.get(
-        Uri.parse('$baseUrl/movies/top-rated'),
+        Uri.parse('$baseUrl/api/top-movies'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${token['token']}',
@@ -50,15 +50,15 @@ class MovieService {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final List<dynamic> movies = data['movies'];
-        return movies.map((json) => Movie.fromJson(json)).toList();
+        final List<dynamic> data = jsonDecode(response.body);
+        return data.map((json) => Movie.fromJson(json)).toList();
       } else if (response.statusCode == 401) {
         await StorageService.deleteToken();
         return [];
       }
       return [];
     } catch (e) {
+      print('Error in getTopMovies: $e');
       return [];
     }
   }
@@ -92,7 +92,11 @@ class MovieService {
     }
   }
 
-  Future<Map<String, dynamic>> postMovieReview(int movieId, double rating, String description) async {
+  Future<Map<String, dynamic>> postMovieReview(
+    int movieId,
+    double rating,
+    String description,
+  ) async {
     try {
       final token = await StorageService.getToken();
       if (token['token'] == null) {
@@ -139,14 +143,12 @@ class MovieService {
       print('Searching for: $query'); // Debug log
 
       final response = await http.post(
-        Uri.parse('$baseUrl/movies/search'),
+        Uri.parse('$baseUrl/api/movies/search'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${token['token']}',
         },
-        body: jsonEncode({
-          'query': query,
-        }),
+        body: jsonEncode({'query': query}),
       );
 
       print('Response status code: ${response.statusCode}'); // Debug log
@@ -157,7 +159,9 @@ class MovieService {
           final data = jsonDecode(response.body);
           print('Decoded JSON data: $data'); // Debug log
           final searchResponse = MovieSearchResponse.fromJson(data);
-          print('Parsed movies count: ${searchResponse.movies.length}'); // Debug log
+          print(
+            'Parsed movies count: ${searchResponse.movies.length}',
+          ); // Debug log
           return searchResponse;
         } catch (e, stackTrace) {
           print('Error parsing response: $e');
@@ -177,4 +181,4 @@ class MovieService {
       throw Exception('Failed to search movies: $e');
     }
   }
-} 
+}
