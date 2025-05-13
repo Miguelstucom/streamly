@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'home_screen.dart';
 import 'profile_screen.dart';
+import 'chat_screen.dart';
 import '../theme/app_theme.dart';
 
 class MainScreen extends StatefulWidget {
@@ -15,6 +16,7 @@ class _MainScreenState extends State<MainScreen> {
   final PageController _pageController = PageController();
   final List<Widget> _screens = [
     const HomeScreen(),
+    const ChatScreen(),
     const ProfileScreen(),
   ];
 
@@ -51,8 +53,8 @@ class _MainScreenState extends State<MainScreen> {
       bottomNavigationBar: SafeArea(
         child: Container(
           decoration: BoxDecoration(
-
-
+            color: Colors.black.withOpacity(0.8),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: BottomNavigationBar(
             currentIndex: _selectedIndex,
@@ -61,14 +63,10 @@ class _MainScreenState extends State<MainScreen> {
             elevation: 0,
             selectedItemColor: AppTheme.primaryColor,
             unselectedItemColor: Colors.grey,
-            selectedLabelStyle: const TextStyle(
-              fontWeight: FontWeight.bold,
-            ),
+            selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
             items: const [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.home),
-                label: 'Inicio',
-              ),
+              BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
+              BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
               BottomNavigationBarItem(
                 icon: Icon(Icons.person),
                 label: 'Perfil',
@@ -79,4 +77,4 @@ class _MainScreenState extends State<MainScreen> {
       ),
     );
   }
-} 
+}

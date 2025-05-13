@@ -36,6 +36,68 @@ class MovieService {
     }
   }
 
+  Future<List<Movie>> getUserRecommendations(String id) async {
+    try {
+      final token = await StorageService.getToken();
+      if (token['token'] == null) return [];
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/recommendations/user/$id'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${token['token']}',
+        },
+        body: jsonEncode({
+          'n_recommendations': 10, // Default number of recommendations
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List<dynamic> recommendations = data['recommendations'];
+        return recommendations.map((json) => Movie.fromJson(json)).toList();
+      } else if (response.statusCode == 401) {
+        await StorageService.deleteToken();
+        return [];
+      }
+      return [];
+    } catch (e) {
+      print('Error in getUserRecommendations: $e');
+      return [];
+    }
+  }
+
+  Future<List<Movie>> getUserWorstRecommendations(String id) async {
+    try {
+      final token = await StorageService.getToken();
+      if (token['token'] == null) return [];
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/worstrecommendations/user/$id'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${token['token']}',
+        },
+        body: jsonEncode({
+          'n_recommendations': 10, // Default number of recommendations
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List<dynamic> recommendations = data['recommendations'];
+        return recommendations.map((json) => Movie.fromJson(json)).toList();
+      } else if (response.statusCode == 401) {
+        await StorageService.deleteToken();
+        return [];
+      }
+      return [];
+    } catch (e) {
+      print('Error in getUserRecommendations: $e');
+      return [];
+    }
+  }
+
   Future<List<Movie>> getTopMovies() async {
     try {
       final token = await StorageService.getToken();
@@ -133,7 +195,7 @@ class MovieService {
     }
   }
 
-  Future<MovieSearchResponse> searchMovies(String query) async {
+  Future<List<Movie>> searchMovies(String query) async {
     try {
       final token = await StorageService.getToken();
       if (token['token'] == null) {
@@ -143,12 +205,11 @@ class MovieService {
       print('Searching for: $query'); // Debug log
 
       final response = await http.post(
-        Uri.parse('$baseUrl/api/movies/search'),
+        Uri.parse('$baseUrl/api/movies/search/$query'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${token['token']}',
         },
-        body: jsonEncode({'query': query}),
       );
 
       print('Response status code: ${response.statusCode}'); // Debug log
@@ -156,13 +217,9 @@ class MovieService {
 
       if (response.statusCode == 200) {
         try {
-          final data = jsonDecode(response.body);
+          final List<dynamic> data = jsonDecode(response.body);
           print('Decoded JSON data: $data'); // Debug log
-          final searchResponse = MovieSearchResponse.fromJson(data);
-          print(
-            'Parsed movies count: ${searchResponse.movies.length}',
-          ); // Debug log
-          return searchResponse;
+          return data.map((json) => Movie.fromJson(json)).toList();
         } catch (e, stackTrace) {
           print('Error parsing response: $e');
           print('Stack trace: $stackTrace');
@@ -171,6 +228,8 @@ class MovieService {
       } else if (response.statusCode == 401) {
         await StorageService.deleteToken();
         throw Exception('Unauthorized');
+      } else if (response.statusCode == 404) {
+        return []; // Return empty list for no results
       } else {
         final error = jsonDecode(response.body);
         throw Exception(error['detail'] ?? 'Failed to search movies');
