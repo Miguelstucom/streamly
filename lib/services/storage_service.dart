@@ -28,4 +28,4 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.containsKey(_tokenKey);
   }
-} 
+}

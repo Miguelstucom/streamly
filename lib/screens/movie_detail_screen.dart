@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/movie.dart';
 import '../models/movie_review.dart';
+import '../models/credits.dart';
 import '../services/movie_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/skeleton.dart';
@@ -18,14 +19,19 @@ class MovieDetailScreen extends StatefulWidget {
 class _MovieDetailScreenState extends State<MovieDetailScreen> {
   final MovieService _movieService = MovieService();
   MovieReviewsResponse? _reviews;
-  bool _isLoading = true;
+  Credits? _credits;
+  bool _isLoadingReviews = false;
+  bool _isLoadingCredits = false;
   String? _error;
   static const String _imageBaseUrl = 'https://image.tmdb.org/t/p/w500';
+  final _reviewController = TextEditingController();
+  double _rating = 0;
 
   @override
   void initState() {
     super.initState();
     _loadReviews();
+    _loadCredits();
   }
 
   Future<void> _loadReviews() async {
@@ -35,13 +41,50 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       );
       setState(() {
         _reviews = reviews;
-        _isLoading = false;
+        _isLoadingReviews = false;
       });
     } catch (e) {
       setState(() {
         _error = e.toString();
-        _isLoading = false;
+        _isLoadingReviews = false;
       });
+    }
+  }
+
+  Future<void> _loadCredits() async {
+    if (widget.movie.movieId == null) {
+      setState(() {
+        _isLoadingCredits = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoadingCredits = true;
+    });
+
+    try {
+      final credits = await _movieService.getMovieCredits(
+        widget.movie.movieId!,
+      );
+      if (mounted) {
+        setState(() {
+          _credits = credits;
+          _isLoadingCredits = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingCredits = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cargar los créditos: $e'),
+            backgroundColor: AppTheme.primaryColor,
+          ),
+        );
+      }
     }
   }
 
@@ -305,6 +348,176 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     if (timestamp == null) return '';
     final date = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
     return DateFormat('dd/MM/yyyy HH:mm').format(date);
+  }
+
+  Widget _buildCreditsSection() {
+    if (_isLoadingCredits) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_credits == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 24),
+        Text(
+          'Reparto y Equipo',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Directors
+        if (_credits!.directors.isNotEmpty) ...[
+          Text(
+            'Directores',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children:
+                _credits!.directors.map((director) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      director.name,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  );
+                }).toList(),
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // Producers
+        if (_credits!.producers.isNotEmpty) ...[
+          Text(
+            'Productores',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children:
+                _credits!.producers.map((producer) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      producer.name,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  );
+                }).toList(),
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // Cast
+        if (_credits!.cast.isNotEmpty) ...[
+          Text(
+            'Reparto',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 200,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _credits!.cast.length,
+              itemBuilder: (context, index) {
+                final actor = _credits!.cast[index];
+                return Container(
+                  width: 120,
+                  margin: const EdgeInsets.only(right: 16),
+                  child: Column(
+                    children: [
+                      // Actor photo
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.grey[800],
+                          image:
+                              actor.profilePath != null
+                                  ? DecorationImage(
+                                    image: NetworkImage(
+                                      'https://image.tmdb.org/t/p/w185${actor.profilePath}',
+                                    ),
+                                    fit: BoxFit.cover,
+                                  )
+                                  : null,
+                        ),
+                        child:
+                            actor.profilePath == null
+                                ? const Icon(
+                                  Icons.person,
+                                  size: 50,
+                                  color: Colors.white54,
+                                )
+                                : null,
+                      ),
+                      const SizedBox(height: 8),
+                      // Actor name
+                      Text(
+                        actor.name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      // Character name
+                      Text(
+                        actor.character,
+                        style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   @override
@@ -646,6 +859,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                       ),
                       const SizedBox(height: 24),
                     ],
+                    _buildCreditsSection(),
                     if (_reviews != null) ...[
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -678,7 +892,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      if (_isLoading)
+                      if (_isLoadingReviews)
                         const Center(child: CircularProgressIndicator())
                       else if (_error != null)
                         Center(

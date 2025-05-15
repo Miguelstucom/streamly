@@ -16,9 +16,10 @@ class User {
       userId: json['id'].toString(),
       email: json['email'],
       name: json['name'],
-      preferredGenres: json['preferred_genres'] != null 
-          ? List<String>.from(json['preferred_genres'])
-          : null,
+      preferredGenres:
+          json['preferred_genres'] != null
+              ? List<String>.from(json['preferred_genres'])
+              : null,
     );
   }
 
@@ -35,4 +36,4 @@ class User {
   String get firstName => name.split(' ').first;
   String get lastName => name.split(' ').last;
   String get username => email.split('@').first;
-} 
+}

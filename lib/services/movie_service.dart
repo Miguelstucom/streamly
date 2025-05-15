@@ -4,6 +4,7 @@ import '../models/movie.dart';
 import '../models/movie_review.dart';
 import '../models/movie_search_response.dart';
 import 'storage_service.dart';
+import '../models/credits.dart';
 
 class MovieService {
   static const String baseUrl = 'http://10.0.2.2:8000';
@@ -238,6 +239,52 @@ class MovieService {
       print('Error in searchMovies: $e');
       print('Stack trace: $stackTrace');
       throw Exception('Failed to search movies: $e');
+    }
+  }
+
+  Future<Credits> getMovieCredits(int movieId) async {
+    try {
+      final token = await StorageService.getToken();
+      if (token['token'] == null) {
+        throw Exception('No token found');
+      }
+
+      print('Fetching credits for movie ID: $movieId'); // Debug log
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/movies/$movieId/credits'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${token['token']}',
+        },
+      );
+
+      print('Response status code: ${response.statusCode}'); // Debug log
+      print('Response body: ${response.body}'); // Debug log
+
+      if (response.statusCode == 200) {
+        try {
+          final data = jsonDecode(response.body);
+          print('Decoded JSON data: $data'); // Debug log
+          return Credits.fromJson(data);
+        } catch (e, stackTrace) {
+          print('Error parsing response: $e');
+          print('Stack trace: $stackTrace');
+          throw Exception('Failed to parse credits response: $e');
+        }
+      } else if (response.statusCode == 401) {
+        await StorageService.deleteToken();
+        throw Exception('Unauthorized');
+      } else if (response.statusCode == 404) {
+        throw Exception('Movie not found');
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['detail'] ?? 'Failed to get movie credits');
+      }
+    } catch (e, stackTrace) {
+      print('Error in getMovieCredits: $e');
+      print('Stack trace: $stackTrace');
+      throw Exception('Failed to get movie credits: $e');
     }
   }
 }

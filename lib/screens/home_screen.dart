@@ -288,7 +288,7 @@ class _HomeScreenState extends State<HomeScreen>
                                       gridDelegate:
                                           const SliverGridDelegateWithFixedCrossAxisCount(
                                             crossAxisCount: 2,
-                                            childAspectRatio: 0.7,
+                                            childAspectRatio: 0.6,
                                             crossAxisSpacing: 16,
                                             mainAxisSpacing: 16,
                                           ),
@@ -790,7 +790,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 3),
             Text(
               movie.cleanTitle,
               style: const TextStyle(
