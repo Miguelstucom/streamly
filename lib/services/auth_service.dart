@@ -75,19 +75,38 @@ class AuthService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        await StorageService.saveToken(
-          data['access_token'],
-          data['token_type'],
+
+        // Obtener el ID del usuario del endpoint /me
+        final userResponse = await http.get(
+          Uri.parse('$_baseUrl/me'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${data['access_token']}',
+          },
         );
 
-        // Obtener información del usuario después del login
-        _currentUser = await getCurrentUser();
+        if (userResponse.statusCode == 200) {
+          final userData = jsonDecode(userResponse.body);
+          await StorageService.saveToken(
+            data['access_token'],
+            data['token_type'],
+            userId: userData['id'], // Usar el ID directamente del endpoint /me
+          );
 
-        return {
-          'success': true,
-          'token': data['access_token'],
-          'tokenType': data['token_type'],
-        };
+          // Obtener información del usuario después del login
+          _currentUser = await getCurrentUser();
+
+          return {
+            'success': true,
+            'token': data['access_token'],
+            'tokenType': data['token_type'],
+          };
+        } else {
+          return {
+            'success': false,
+            'error': 'Error al obtener información del usuario',
+          };
+        }
       } else {
         return {'success': false, 'error': 'Email o contraseña incorrectos'};
       }

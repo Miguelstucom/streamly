@@ -294,7 +294,7 @@ class _HomeScreenState extends State<HomeScreen>
                                           ),
                                       itemCount: _searchResults.length,
                                       itemBuilder: (context, index) {
-                                        return _buildMovieCard(
+                                        return buildMovieCard(
                                           _searchResults[index],
                                         );
                                       },
@@ -367,7 +367,7 @@ class _HomeScreenState extends State<HomeScreen>
                                         MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        'Rec personalizadas',
+                                        'Personalized recs',
                                         style: Theme.of(
                                           context,
                                         ).textTheme.headlineSmall?.copyWith(
@@ -403,7 +403,7 @@ class _HomeScreenState extends State<HomeScreen>
                                       scrollDirection: Axis.horizontal,
                                       itemCount: _recommendedMovies.length,
                                       itemBuilder: (context, index) {
-                                        return _buildMovieCard(
+                                        return buildMovieCard(
                                           _recommendedMovies[index],
                                         );
                                       },
@@ -418,7 +418,7 @@ class _HomeScreenState extends State<HomeScreen>
                                         MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        'Serendipia',
+                                        'Maybe you like',
                                         style: Theme.of(
                                           context,
                                         ).textTheme.headlineSmall?.copyWith(
@@ -454,7 +454,7 @@ class _HomeScreenState extends State<HomeScreen>
                                       scrollDirection: Axis.horizontal,
                                       itemCount: _worstrecommendedMovies.length,
                                       itemBuilder: (context, index) {
-                                        return _buildMovieCard(
+                                        return buildMovieCard(
                                           _worstrecommendedMovies[index],
                                         );
                                       },
@@ -485,7 +485,7 @@ class _HomeScreenState extends State<HomeScreen>
                                             scrollDirection: Axis.horizontal,
                                             itemCount: entry.value.length,
                                             itemBuilder: (context, index) {
-                                              return _buildMovieCard(
+                                              return buildMovieCard(
                                                 entry.value[index],
                                               );
                                             },
@@ -736,7 +736,7 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildMovieCard(Movie movie) {
+  Widget buildMovieCard(Movie movie) {
     return GestureDetector(
       onTap: () {
         Navigator.push(

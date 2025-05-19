@@ -5,9 +5,15 @@ import '../models/movie_review.dart';
 import '../models/movie_search_response.dart';
 import 'storage_service.dart';
 import '../models/credits.dart';
+import 'package:streamly/config/api_config.dart';
 
 class MovieService {
-  static const String baseUrl = 'http://10.0.2.2:8000';
+  final String _baseUrl = ApiConfig.baseUrl;
+
+  // Singleton pattern
+  static final MovieService _instance = MovieService._internal();
+  factory MovieService() => _instance;
+  MovieService._internal();
 
   Future<List<Movie>> getMoviesByGenre(String genre) async {
     try {
@@ -15,7 +21,7 @@ class MovieService {
       if (token['token'] == null) return [];
 
       final response = await http.get(
-        Uri.parse('$baseUrl/api/movies/genre/$genre'),
+        Uri.parse('$_baseUrl/api/movies/genre/$genre'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${token['token']}',
@@ -43,7 +49,38 @@ class MovieService {
       if (token['token'] == null) return [];
 
       final response = await http.post(
-        Uri.parse('$baseUrl/recommendations/user/$id'),
+        Uri.parse('$_baseUrl/recommendations/user/$id'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${token['token']}',
+        },
+        body: jsonEncode({
+          'n_recommendations': 10, // Default number of recommendations
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List<dynamic> recommendations = data['recommendations'];
+        return recommendations.map((json) => Movie.fromJson(json)).toList();
+      } else if (response.statusCode == 401) {
+        await StorageService.deleteToken();
+        return [];
+      }
+      return [];
+    } catch (e) {
+      print('Error in getUserRecommendations: $e');
+      return [];
+    }
+  }
+
+  Future<List<Movie>> getRecommendationsFromMovies(int id) async {
+    try {
+      final token = await StorageService.getToken();
+      if (token['token'] == null) return [];
+
+      final response = await http.post(
+        Uri.parse('$_baseUrl/recommendations/movie/$id'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${token['token']}',
@@ -74,7 +111,7 @@ class MovieService {
       if (token['token'] == null) return [];
 
       final response = await http.post(
-        Uri.parse('$baseUrl/worstrecommendations/user/$id'),
+        Uri.parse('$_baseUrl/worstrecommendations/user/$id'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${token['token']}',
@@ -105,7 +142,7 @@ class MovieService {
       if (token['token'] == null) return [];
 
       final response = await http.get(
-        Uri.parse('$baseUrl/api/top-movies'),
+        Uri.parse('$_baseUrl/api/top-movies'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${token['token']}',
@@ -134,7 +171,7 @@ class MovieService {
       }
 
       final response = await http.get(
-        Uri.parse('$baseUrl/movies/$movieId/reviews'),
+        Uri.parse('$_baseUrl/movies/$movieId/reviews'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${token['token']}',
@@ -167,7 +204,7 @@ class MovieService {
       }
 
       final response = await http.post(
-        Uri.parse('$baseUrl/movies/$movieId/review'),
+        Uri.parse('$_baseUrl/movies/$movieId/review'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${token['token']}',
@@ -206,7 +243,7 @@ class MovieService {
       print('Searching for: $query'); // Debug log
 
       final response = await http.post(
-        Uri.parse('$baseUrl/api/movies/search/$query'),
+        Uri.parse('$_baseUrl/api/movies/search/$query'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${token['token']}',
@@ -252,7 +289,7 @@ class MovieService {
       print('Fetching credits for movie ID: $movieId'); // Debug log
 
       final response = await http.get(
-        Uri.parse('$baseUrl/api/movies/$movieId/credits'),
+        Uri.parse('$_baseUrl/api/movies/$movieId/credits'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${token['token']}',
@@ -285,6 +322,45 @@ class MovieService {
       print('Error in getMovieCredits: $e');
       print('Stack trace: $stackTrace');
       throw Exception('Failed to get movie credits: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> registerWatchedMovie(int movieId) async {
+    try {
+      final token = await StorageService.getToken();
+      if (token['token'] == null) {
+        throw Exception('No hay sesión activa');
+      }
+
+      final userId = token['user_id'];
+      if (userId == null) {
+        throw Exception('ID de usuario no encontrado');
+      }
+
+      final response = await http.post(
+        Uri.parse('$_baseUrl/user/film'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${token['token']}',
+        },
+        body: jsonEncode({'user_id': int.parse(userId), 'movie_id': movieId}),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else if (response.statusCode == 401) {
+        await StorageService.deleteToken();
+        throw Exception(
+          'Sesión expirada. Por favor, inicia sesión nuevamente.',
+        );
+      } else if (response.statusCode == 403) {
+        throw Exception('No tienes permiso para realizar esta acción');
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['detail'] ?? 'Error al registrar la película');
+      }
+    } catch (e) {
+      throw Exception('Error de conexión: $e');
     }
   }
 }

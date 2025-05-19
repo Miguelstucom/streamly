@@ -19,6 +19,7 @@ class MovieDetailScreen extends StatefulWidget {
 class _MovieDetailScreenState extends State<MovieDetailScreen> {
   final MovieService _movieService = MovieService();
   MovieReviewsResponse? _reviews;
+  List<Movie> _Rcommendedmovies = [];
   Credits? _credits;
   bool _isLoadingReviews = false;
   bool _isLoadingCredits = false;
@@ -26,12 +27,36 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   static const String _imageBaseUrl = 'https://image.tmdb.org/t/p/w500';
   final _reviewController = TextEditingController();
   double _rating = 0;
+  bool _isWatching = false;
 
   @override
   void initState() {
     super.initState();
     _loadReviews();
     _loadCredits();
+    _loadRecommendations();
+  }
+
+  Future<void> _loadRecommendations() async {
+    try {
+      final recommendations = await _movieService.getRecommendationsFromMovies(
+        widget.movie.movieId!,
+      );
+      if (!mounted) return;
+      setState(() {
+        _Rcommendedmovies = recommendations;
+      });
+    } catch (e) {
+      print('Error in _searchMovies: $e'); // Debug log
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al buscar películas: $e'),
+            backgroundColor: AppTheme.primaryColor,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _loadReviews() async {
@@ -520,6 +545,33 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     );
   }
 
+  Future<void> _handleWatchNow() async {
+    setState(() {
+      _isWatching = true;
+    });
+
+    try {
+      await _movieService.registerWatchedMovie(widget.movie.movieId!);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('¡Película registrada como vista!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isWatching = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -583,6 +635,32 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Container(height: 8,),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _isWatching ? null : _handleWatchNow,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                          Theme.of(context).colorScheme.primary,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child:
+                        _isWatching
+                            ? const CircularProgressIndicator()
+                            : const Text(
+                          'Watch Now',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Container(height: 8,),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -772,6 +850,24 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                       ),
                       const SizedBox(height: 24),
                     ],
+                    Text(
+                      'Viewers Also Watched',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Container(height: 8),
+                    SizedBox(
+                      height: 280,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _Rcommendedmovies.length,
+                        itemBuilder: (context, index) {
+                          return buildMovieCard(_Rcommendedmovies[index]);
+                        },
+                      ),
+                    ),
                     if (widget.movie.budget != null ||
                         widget.movie.revenue != null) ...[
                       Text(
@@ -911,9 +1007,87 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                       else
                         ..._reviews!.latestReviews.map(_buildReviewCard),
                     ],
+                    const SizedBox(height: 16),
+
                   ],
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget buildMovieCard(Movie movie) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MovieDetailScreen(movie: movie),
+          ),
+        );
+      },
+      child: Container(
+        width: 180,
+        margin: const EdgeInsets.only(right: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              children: [
+                Container(
+                  height: 200,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[900],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child:
+                      movie.posterPath != null
+                          ? ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              '$_imageBaseUrl${movie.posterPath}',
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Center(
+                                  child: Icon(
+                                    Icons.movie,
+                                    size: 64,
+                                    color: Colors.white54,
+                                  ),
+                                );
+                              },
+                            ),
+                          )
+                          : const Center(
+                            child: Icon(
+                              Icons.movie,
+                              size: 64,
+                              color: Colors.white54,
+                            ),
+                          ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 3),
+            Text(
+              movie.cleanTitle,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 7),
+            Text(
+              movie.year,
+              style: TextStyle(color: Colors.grey[400], fontSize: 14),
             ),
           ],
         ),
