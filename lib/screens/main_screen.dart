@@ -79,10 +79,7 @@ class _MainScreenState extends State<MainScreen> {
             unselectedItemColor: Colors.grey,
             items: const [
               BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.casino),
-                label: 'Serendipia',
-              ),
+              BottomNavigationBarItem(icon: Icon(Icons.casino), label: 'Games'),
               BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
               BottomNavigationBarItem(
                 icon: Icon(Icons.person),

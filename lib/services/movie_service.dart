@@ -363,4 +363,72 @@ class MovieService {
       throw Exception('Error de conexión: $e');
     }
   }
+
+  Future<List<Movie>> getSvdRecommendations(String userId) async {
+    try {
+      final token = await StorageService.getToken();
+      if (token['token'] == null) return [];
+
+      final response = await http.get(
+        Uri.parse('$_baseUrl/recommendations/svd/$userId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${token['token']}',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List<dynamic> recommendations = data['recommendations'];
+        return recommendations.map((json) => Movie.fromJson(json)).toList();
+      } else if (response.statusCode == 401) {
+        await StorageService.deleteToken();
+        return [];
+      }
+      return [];
+    } catch (e) {
+      print('Error in getSvdRecommendations: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getGenreRecommendations(
+    String userId,
+  ) async {
+    try {
+      final token = await StorageService.getToken();
+      if (token['token'] == null) return [];
+
+      final response = await http.get(
+        Uri.parse('$_baseUrl/recommendations/genres/$userId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${token['token']}',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List<dynamic> recommendations = data['recommended_genres'];
+        return recommendations
+            .map(
+              (json) => {
+                'genre_id': json['genre_id'],
+                'name': json['name'],
+                'predicted_score': json['predicted_score'],
+                'already_seen': json['already_seen'],
+                'view_count': json['view_count'],
+              },
+            )
+            .toList();
+      } else if (response.statusCode == 401) {
+        await StorageService.deleteToken();
+        return [];
+      }
+      return [];
+    } catch (e) {
+      print('Error in getGenreRecommendations: $e');
+      return [];
+    }
+  }
 }

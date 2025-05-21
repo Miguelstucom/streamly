@@ -87,7 +87,7 @@ class _SerendipiaScreenState extends State<SerendipiaScreen>
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text(
-                  'Serendipia',
+                  'Roulette',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,

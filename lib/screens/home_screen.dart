@@ -26,6 +26,8 @@ class _HomeScreenState extends State<HomeScreen>
   List<Movie> _searchResults = [];
   List<Movie> _recommendedMovies = [];
   List<Movie> _worstrecommendedMovies = [];
+  List<Movie> _svdRecommendations = [];
+  List<Map<String, dynamic>> _genreRecommendations = [];
   static const String _imageBaseUrl = 'https://image.tmdb.org/t/p/w500';
   bool _isLoading = true;
   bool _isSearching = false;
@@ -113,8 +115,26 @@ class _HomeScreenState extends State<HomeScreen>
         _topMovies = topMovies;
       });
 
-      if (user?.preferredGenres != null) {
-        for (final genre in user!.preferredGenres!) {
+      // Get genre recommendations
+      final genreRecommendations = await _movieService.getGenreRecommendations(
+        user!.userId,
+      );
+
+      // Load movies for recommended genres
+      for (final genre in genreRecommendations) {
+        final movies = await _movieService.getMoviesByGenre(genre['name']);
+        if (!mounted) return;
+        setState(() {
+          _moviesByGenre[genre['name']] = movies;
+        });
+      }
+
+      // Load movies for user's favorite genres (only if they exist)
+      if (user.preferredGenres != null) {
+        for (final genre in user.preferredGenres!) {
+          // Skip if this genre is already in recommended genres
+          if (genreRecommendations.any((g) => g['name'] == genre)) continue;
+
           final movies = await _movieService.getMoviesByGenre(genre);
           if (!mounted) return;
           setState(() {
@@ -124,15 +144,22 @@ class _HomeScreenState extends State<HomeScreen>
       }
 
       final recommendedMovies = await _movieService.getUserRecommendations(
-        user!.userId,
+        user.userId,
       );
 
       final worstrecommendedMovies = await _movieService
-          .getUserWorstRecommendations(user!.userId);
+          .getUserWorstRecommendations(user.userId);
+
+      final svdRecommendations = await _movieService.getSvdRecommendations(
+        user.userId,
+      );
+
       if (!mounted) return;
       setState(() {
         _recommendedMovies = recommendedMovies;
         _worstrecommendedMovies = worstrecommendedMovies;
+        _svdRecommendations = svdRecommendations;
+        _genreRecommendations = genreRecommendations;
       });
 
       if (mounted) {
@@ -183,12 +210,23 @@ class _HomeScreenState extends State<HomeScreen>
                           floating: true,
                           backgroundColor: Colors.transparent,
                           elevation: 0,
-                          title: Text(
-                            'Bienvenid@, ${_user?.firstName}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          title: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Image.asset(
+                                "assets/images/logo.png",
+                                height: 55,
+                                width: 55,
+                              ),
+                              Text(
+                                'Welcome, ${_user?.firstName}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         SliverToBoxAdapter(
@@ -207,7 +245,7 @@ class _HomeScreenState extends State<HomeScreen>
                                     controller: _searchController,
                                     style: const TextStyle(color: Colors.white),
                                     decoration: InputDecoration(
-                                      hintText: 'Buscar películas...',
+                                      hintText: 'Search movies...',
                                       hintStyle: TextStyle(
                                         color: Colors.grey[400],
                                       ),
@@ -246,34 +284,17 @@ class _HomeScreenState extends State<HomeScreen>
                                 const SizedBox(height: 24),
                                 // Search Results
                                 if (_isSearching) ...[
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Resultados de búsqueda${_searchController.text.isNotEmpty ? ' para "${_searchController.text}"' : ''}',
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.titleLarge?.copyWith(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '${_searchResults.length} películas encontradas',
-                                        style: TextStyle(
-                                          color: Colors.grey[400],
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ],
+                                  _buildSectionHeader(
+                                    'Search Results',
+                                    subtitle:
+                                        _searchController.text.isNotEmpty
+                                            ? 'Results for "${_searchController.text}"'
+                                            : null,
                                   ),
-                                  const SizedBox(height: 16),
                                   if (_searchResults.isEmpty)
                                     const Center(
                                       child: Text(
-                                        'No se encontraron películas',
+                                        'No movies found',
                                         style: TextStyle(
                                           color: Colors.grey,
                                           fontSize: 16,
@@ -305,41 +326,7 @@ class _HomeScreenState extends State<HomeScreen>
 
                                 // Top 10 Movies section
                                 if (!_isSearching && _topMovies.isNotEmpty) ...[
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        'Top 10 Películas',
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.headlineSmall?.copyWith(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 6,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: AppTheme.primaryColor,
-                                          borderRadius: BorderRadius.circular(
-                                            20,
-                                          ),
-                                        ),
-                                        child: const Text(
-                                          'Ver todas',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
+                                  _buildSectionHeader('Top 10 Films'),
                                   SizedBox(
                                     height: 400,
                                     child: ListView.builder(
@@ -362,41 +349,9 @@ class _HomeScreenState extends State<HomeScreen>
                                 // Add this section after the search results and before the Top 10 Movies section
                                 if (!_isSearching &&
                                     _recommendedMovies.isNotEmpty) ...[
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        'Personalized recs',
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.headlineSmall?.copyWith(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 6,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: AppTheme.primaryColor,
-                                          borderRadius: BorderRadius.circular(
-                                            20,
-                                          ),
-                                        ),
-                                        child: const Text(
-                                          'Ver todas',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                                  _buildSectionHeader(
+                                    'Personalized Recommendations',
                                   ),
-                                  const SizedBox(height: 16),
                                   SizedBox(
                                     height: 280,
                                     child: ListView.builder(
@@ -413,41 +368,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 ],
                                 if (!_isSearching &&
                                     _recommendedMovies.isNotEmpty) ...[
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        'Maybe you like',
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.headlineSmall?.copyWith(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 6,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: AppTheme.primaryColor,
-                                          borderRadius: BorderRadius.circular(
-                                            20,
-                                          ),
-                                        ),
-                                        child: const Text(
-                                          'Ver todas',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
+                                  _buildSectionHeader('Maybe You\'ll Like'),
                                   SizedBox(
                                     height: 280,
                                     child: ListView.builder(
@@ -462,39 +383,67 @@ class _HomeScreenState extends State<HomeScreen>
                                   ),
                                   const SizedBox(height: 32),
                                 ],
-                                // Genre sections
-                                if (!_isSearching) ...[
-                                  ..._moviesByGenre.entries.map((entry) {
-                                    return Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          entry.key,
-                                          style: Theme.of(
-                                            context,
-                                          ).textTheme.titleLarge?.copyWith(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 16),
-                                        SizedBox(
-                                          height: 280,
-                                          child: ListView.builder(
-                                            scrollDirection: Axis.horizontal,
-                                            itemCount: entry.value.length,
-                                            itemBuilder: (context, index) {
-                                              return buildMovieCard(
-                                                entry.value[index],
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                        const SizedBox(height: 32),
-                                      ],
+
+                                // Add SVD recommendations section
+                                if (!_isSearching &&
+                                    _svdRecommendations.isNotEmpty) ...[
+                                  _buildSectionHeader('Users Like You Watched'),
+                                  SizedBox(
+                                    height: 280,
+                                    child: ListView.builder(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: _svdRecommendations.length,
+                                      itemBuilder: (context, index) {
+                                        return buildMovieCard(
+                                          _svdRecommendations[index],
+                                        );
+                                      },
+                                    ),
+                                  ),
+
+                                ],
+
+                                // Add recommended genres section
+                                if (!_isSearching &&
+                                    _genreRecommendations.isNotEmpty) ...[
+                                  _buildSectionHeader(''),
+                                  ..._genreRecommendations.map((genre) {
+                                    final genreName = genre['name'] as String;
+                                    final movies =
+                                        _moviesByGenre[genreName] ?? [];
+                                    if (movies.isEmpty)
+                                      return const SizedBox.shrink();
+
+                                    return _buildGenreSection(
+                                      genreName,
+                                      movies,
+                                      viewCount: '${genre['view_count']} views',
                                     );
                                   }).toList(),
+                                ],
+
+                                // Show favorite genres that are not in recommended genres
+                                if (!_isSearching &&
+                                    _user?.preferredGenres != null) ...[
+                                  ..._user!.preferredGenres!
+                                      .where(
+                                        (genre) =>
+                                            !_genreRecommendations.any(
+                                              (g) => g['name'] == genre,
+                                            ),
+                                      )
+                                      .map((genre) {
+                                        final movies =
+                                            _moviesByGenre[genre] ?? [];
+                                        if (movies.isEmpty)
+                                          return const SizedBox.shrink();
+
+                                        return _buildGenreSection(
+                                          genre,
+                                          movies,
+                                        );
+                                      })
+                                      .toList(),
                                 ],
                               ],
                             ),
@@ -747,7 +696,7 @@ class _HomeScreenState extends State<HomeScreen>
         );
       },
       child: Container(
-        width: 180,
+        width: 160,
         margin: const EdgeInsets.only(right: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -755,15 +704,22 @@ class _HomeScreenState extends State<HomeScreen>
             Stack(
               children: [
                 Container(
-                  height: 200,
+                  height: 240,
                   decoration: BoxDecoration(
                     color: Colors.grey[900],
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child:
                       movie.posterPath != null
                           ? ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(12),
                             child: Image.network(
                               '$_imageBaseUrl${movie.posterPath}',
                               fit: BoxFit.cover,
@@ -788,43 +744,114 @@ class _HomeScreenState extends State<HomeScreen>
                             ),
                           ),
                 ),
+                // Rating overlay
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.star, color: Colors.amber, size: 16),
+                        const SizedBox(width: 4),
+                        Text(
+                          movie.voteAverage!.toStringAsFixed(1),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 3),
-            Text(
-              movie.cleanTitle,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
+            const SizedBox(height: 5),
+            Center(
+              child:             Text(
+                movie.cleanTitle,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.star, color: Colors.amber, size: 16),
-                const SizedBox(width: 4),
-                Text(
-                  movie.voteAverage!.toStringAsFixed(1),
-                  style: const TextStyle(color: Colors.white70, fontSize: 14),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '(${movie.voteCount})',
-                  style: TextStyle(color: Colors.grey[400], fontSize: 14),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              movie.year,
-              style: TextStyle(color: Colors.grey[400], fontSize: 14),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, {String? subtitle}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: TextStyle(color: Colors.grey[400], fontSize: 14),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGenreSection(
+    String genreName,
+    List<Movie> movies, {
+    String? viewCount,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              "$genreName Films",
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 280,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: movies.length,
+            itemBuilder: (context, index) {
+              return buildMovieCard(movies[index]);
+            },
+          ),
+        ),
+        const SizedBox(height: 32),
+      ],
     );
   }
 }
