@@ -7,6 +7,7 @@ import 'package:streamly/widgets/skeleton_movie_card.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
+import 'dart:async';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -37,6 +38,9 @@ class _HomeScreenState extends State<HomeScreen>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
+  // Add debouncer for search
+  Timer? _debounce;
+
   @override
   bool get wantKeepAlive => true;
 
@@ -56,6 +60,7 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void dispose() {
     _searchController.dispose();
+    _debounce?.cancel();
     _animationController.dispose();
     super.dispose();
   }
@@ -97,6 +102,13 @@ class _HomeScreenState extends State<HomeScreen>
         );
       }
     }
+  }
+
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      _searchMovies(query);
+    });
   }
 
   Future<void> _loadData() async {
@@ -273,12 +285,7 @@ class _HomeScreenState extends State<HomeScreen>
                                             vertical: 14,
                                           ),
                                     ),
-                                    onChanged: (value) {
-                                      if (value.isEmpty) {
-                                        _searchMovies('');
-                                      }
-                                    },
-                                    onSubmitted: _searchMovies,
+                                    onChanged: _onSearchChanged,
                                   ),
                                 ),
                                 const SizedBox(height: 24),
@@ -327,6 +334,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 // Top 10 Movies section
                                 if (!_isSearching && _topMovies.isNotEmpty) ...[
                                   _buildSectionHeader('Top 10 Films'),
+                                  Container(height: 10),
                                   SizedBox(
                                     height: 400,
                                     child: ListView.builder(
@@ -349,9 +357,8 @@ class _HomeScreenState extends State<HomeScreen>
                                 // Add this section after the search results and before the Top 10 Movies section
                                 if (!_isSearching &&
                                     _recommendedMovies.isNotEmpty) ...[
-                                  _buildSectionHeader(
-                                    'Personalized Recommendations',
-                                  ),
+                                  _buildSectionHeader('Personalized Recs'),
+                                  Container(height: 10),
                                   SizedBox(
                                     height: 280,
                                     child: ListView.builder(
@@ -369,6 +376,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 if (!_isSearching &&
                                     _recommendedMovies.isNotEmpty) ...[
                                   _buildSectionHeader('Maybe You\'ll Like'),
+                                  Container(height: 10),
                                   SizedBox(
                                     height: 280,
                                     child: ListView.builder(
@@ -388,6 +396,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 if (!_isSearching &&
                                     _svdRecommendations.isNotEmpty) ...[
                                   _buildSectionHeader('Users Like You Watched'),
+                                  Container(height: 10),
                                   SizedBox(
                                     height: 280,
                                     child: ListView.builder(
@@ -400,7 +409,6 @@ class _HomeScreenState extends State<HomeScreen>
                                       },
                                     ),
                                   ),
-
                                 ],
 
                                 // Add recommended genres section
@@ -696,7 +704,7 @@ class _HomeScreenState extends State<HomeScreen>
         );
       },
       child: Container(
-        width: 160,
+        width: 155,
         margin: const EdgeInsets.only(right: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -778,7 +786,7 @@ class _HomeScreenState extends State<HomeScreen>
             ),
             const SizedBox(height: 5),
             Center(
-              child:             Text(
+              child: Text(
                 movie.cleanTitle,
                 style: const TextStyle(
                   color: Colors.white,

@@ -431,4 +431,46 @@ class MovieService {
       return [];
     }
   }
+
+  Future<Map<String, dynamic>> getUserWatchHistory({
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    try {
+      final token = await StorageService.getToken();
+      if (token['token'] == null) {
+        throw Exception('No token found');
+      }
+
+      final response = await http.get(
+        Uri.parse(
+          '$_baseUrl/api/user/watch-history?limit=$limit&offset=$offset',
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${token['token']}',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'total_movies': data['total_movies'],
+          'current_page': data['current_page'],
+          'total_pages': data['total_pages'],
+          'movies':
+              (data['movies'] as List)
+                  .map((json) => Movie.fromJson(json))
+                  .toList(),
+        };
+      } else if (response.statusCode == 401) {
+        await StorageService.deleteToken();
+        throw Exception('Unauthorized');
+      } else {
+        throw Exception('Failed to load watch history');
+      }
+    } catch (e) {
+      throw Exception('Failed to load watch history: $e');
+    }
+  }
 }
