@@ -41,6 +41,8 @@ class _HomeScreenState extends State<HomeScreen>
   // Add debouncer for search
   Timer? _debounce;
 
+  String? _selectedSearchType;
+
   @override
   bool get wantKeepAlive => true;
 
@@ -80,7 +82,10 @@ class _HomeScreenState extends State<HomeScreen>
 
     try {
       print('Starting search for: $query'); // Debug log
-      final movies = await _movieService.searchMovies(query);
+      final movies = await _movieService.searchMovies(
+        query,
+        tipo: _selectedSearchType,
+      );
       print('Search response received: ${movies.length} movies'); // Debug log
 
       if (mounted) {
@@ -248,47 +253,9 @@ class _HomeScreenState extends State<HomeScreen>
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 // Search Bar
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: TextField(
-                                    controller: _searchController,
-                                    style: const TextStyle(color: Colors.white),
-                                    decoration: InputDecoration(
-                                      hintText: 'Search movies...',
-                                      hintStyle: TextStyle(
-                                        color: Colors.grey[400],
-                                      ),
-                                      prefixIcon: const Icon(
-                                        Icons.search,
-                                        color: Colors.grey,
-                                      ),
-                                      suffixIcon:
-                                          _searchController.text.isNotEmpty
-                                              ? IconButton(
-                                                icon: const Icon(
-                                                  Icons.clear,
-                                                  color: Colors.grey,
-                                                ),
-                                                onPressed: () {
-                                                  _searchController.clear();
-                                                  _searchMovies('');
-                                                },
-                                              )
-                                              : null,
-                                      border: InputBorder.none,
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical: 14,
-                                          ),
-                                    ),
-                                    onChanged: _onSearchChanged,
-                                  ),
-                                ),
+                                _buildSearchBar(),
                                 const SizedBox(height: 24),
+
                                 // Search Results
                                 if (_isSearching) ...[
                                   _buildSectionHeader(
@@ -860,6 +827,84 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         const SizedBox(height: 32),
       ],
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Column(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: TextField(
+            controller: _searchController,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: 'Search movies...',
+              hintStyle: TextStyle(color: Colors.grey[400]),
+              prefixIcon: const Icon(Icons.search, color: Colors.grey),
+              suffixIcon:
+                  _searchController.text.isNotEmpty
+                      ? IconButton(
+                        icon: const Icon(Icons.clear, color: Colors.grey),
+                        onPressed: () {
+                          _searchController.clear();
+                          _searchMovies('');
+                        },
+                      )
+                      : null,
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+            ),
+            onChanged: _onSearchChanged,
+          ),
+        ),
+        if (_searchController.text.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildSearchTypeChip('Todos', null),
+                _buildSearchTypeChip('Título', 'title'),
+                _buildSearchTypeChip('Género', 'genre'),
+                _buildSearchTypeChip('Descripción', 'overview'),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildSearchTypeChip(String label, String? type) {
+    final isSelected = _selectedSearchType == type;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        label: Text(
+          label,
+          style: TextStyle(color: isSelected ? Colors.white : Colors.grey[400]),
+        ),
+        selected: isSelected,
+        onSelected: (selected) {
+          setState(() {
+            _selectedSearchType = selected ? type : null;
+          });
+          if (_searchController.text.isNotEmpty) {
+            _searchMovies(_searchController.text);
+          }
+        },
+        backgroundColor: Colors.white.withOpacity(0.1),
+        selectedColor: AppTheme.primaryColor,
+        checkmarkColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
     );
   }
 }

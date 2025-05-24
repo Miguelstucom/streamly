@@ -233,7 +233,7 @@ class MovieService {
     }
   }
 
-  Future<List<Movie>> searchMovies(String query) async {
+  Future<List<Movie>> searchMovies(String query, {String? tipo}) async {
     try {
       final token = await StorageService.getToken();
       if (token['token'] == null) {
@@ -242,8 +242,10 @@ class MovieService {
 
       print('Searching for: $query'); // Debug log
 
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/movies/search/$query'),
+      final response = await http.get(
+        Uri.parse(
+          '$_baseUrl/api/search?query=$query${tipo != null ? '&tipo=$tipo' : ''}',
+        ),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${token['token']}',
@@ -255,9 +257,9 @@ class MovieService {
 
       if (response.statusCode == 200) {
         try {
-          final List<dynamic> data = jsonDecode(response.body);
-          print('Decoded JSON data: $data'); // Debug log
-          return data.map((json) => Movie.fromJson(json)).toList();
+          final data = jsonDecode(response.body);
+          final List<dynamic> results = data['resultados'];
+          return results.map((json) => Movie.fromJson(json)).toList();
         } catch (e, stackTrace) {
           print('Error parsing response: $e');
           print('Stack trace: $stackTrace');
