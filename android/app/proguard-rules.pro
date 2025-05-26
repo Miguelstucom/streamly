@@ -10,7 +10,7 @@
 -keep class androidx.preference.** { *; }
 
 # Keep your application classes
--keep class com.example.streamly.** { *; }
+-keep class com.streamly.streamly.** { *; }
 
 # Keep native methods
 -keepclassmembers class * {
@@ -30,4 +30,19 @@
     private void readObject(java.io.ObjectInputStream);
     java.lang.Object writeReplace();
     java.lang.Object readResolve();
-} 
+}
+
+# Keep Google Play Core classes
+-keep class com.google.android.play.core.** { *; }
+-keep class com.google.android.play.core.splitcompat.** { *; }
+-keep class com.google.android.play.core.splitinstall.** { *; }
+-keep class com.google.android.play.core.tasks.** { *; }
+
+# Keep Flutter classes
+-keep class io.flutter.** { *; }
+-keep class io.flutter.embedding.** { *; }
+-keep class io.flutter.plugin.** { *; }
+-keep class io.flutter.util.** { *; }
+-keep class io.flutter.view.** { *; }
+-keep class io.flutter.plugins.** { *; }
+-keep class io.flutter.plugin.editing.** { *; } 
